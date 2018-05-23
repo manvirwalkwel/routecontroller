@@ -1,29 +1,35 @@
-<?php namespace Buonzz\Template;
+<?php
+namespace Manvir\RouteC;
 
-/**
-*  A sample class
-*
-*  Use this section to define what this class is doing, the PHPDocumentator will use this
-*  to automatically generate an API documentation using this information.
-*
-*  @author yourname
-*/
-class YourClass{
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Route;
 
-   /**  @var string $m_SampleProperty define here what this variable is for, do this for every instance variable */
-   private $m_SampleProperty = '';
- 
-  /**
-  * Sample method 
-  *
-  * Always create a corresponding docblock for each method, describing what it is for,
-  * this helps the phpdocumentator to properly generator the documentation
-  *
-  * @param string $param1 A string containing the parameter, do this for each parameter to the function, make sure to make it descriptive
-  *
-  * @return string
-  */
-   public function method1($param1){
-			return "Hello World";
-   }
+class YourClass extends ServiceProvider {
+  protected $namespace = 'App\Http\Controllers';
+  public function boot()
+  {
+      Route::macro('controller', function ($url, $controller) {
+          $controller = 'App\Http\Controllers\\' . $controller;
+          $reflection = new \ReflectionClass($controller);
+          $methods = collect($reflection->getMethods())
+              ->where('class', $controller);
+          foreach ($methods as $method) {
+              $name = $method->name;
+              $snake_case = snake_case($name);
+              $temp = explode('_', $snake_case);
+              $request = $temp[0];
+              unset($temp[0]);
+              $main = implode('-', $temp);
+              $params = [];
+              foreach ($method->getParameters() as $key => $parameter) {
+                  $optional = $parameter->isOptional() ? '?' : null;
+                  $params[] = "{param$key$optional}";
+              }
+              $params = implode('/', $params);
+              $route = $url . '/' . $main . '/' . $params;
+              $action = "\\$controller@$name";
+              Route::$request($route, $action);
+          }
+      });
+  }
 }
